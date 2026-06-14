@@ -42,6 +42,24 @@ class Settings:
     # Scheduler intervals (minutes); 0 disables.
     sync_interval_min: int = int(os.getenv("YTA_SYNC_INTERVAL_MIN", "360"))
 
+    # ntfy notifications (push on import/failure). Empty topic disables.
+    ntfy_url: str = os.getenv("YTA_NTFY_URL", "https://ntfy.sh").rstrip("/")
+    ntfy_topic: str = os.getenv("YTA_NTFY_TOPIC", "")
+
+    # TMDB — used for the optional independent import list (discover Turkish films).
+    tmdb_api_key: str = os.getenv("YTA_TMDB_API_KEY", "")
+    tmdb_language: str = os.getenv("YTA_TMDB_LANGUAGE", "tr")          # ISO-639-1
+    tmdb_region: str = os.getenv("YTA_TMDB_REGION", "TR")             # original country
+    tmdb_min_votes: int = int(os.getenv("YTA_TMDB_MIN_VOTES", "50"))
+    tmdb_list_enabled: bool = _bool(os.getenv("YTA_TMDB_LIST_ENABLED"), False)
+
+    # Official channels to poll for brand-new uploads (full YouTube channel URLs
+    # or @handles). Empty = channel polling disabled.
+    channel_feeds: list[str] = [
+        c.strip() for c in os.getenv("YTA_CHANNEL_FEEDS", "").split(",") if c.strip()
+    ]
+    channel_feed_limit: int = int(os.getenv("YTA_CHANNEL_FEED_LIMIT", "30"))
+
     # Official / trusted channel name fragments (normalized contains-match).
     official_channels: list[str] = [
         c.strip() for c in os.getenv(

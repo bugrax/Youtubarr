@@ -1,3 +1,12 @@
+# ---- Stage 1: build the React (Vite) frontend ----
+FROM node:20-slim AS frontend
+WORKDIR /fe
+COPY frontend/package.json ./
+RUN npm install
+COPY frontend ./
+RUN npm run build
+
+# ---- Stage 2: Python runtime ----
 FROM python:3.12-slim
 
 # ffmpeg/ffprobe: yt-dlp stream merge + import duration verification
@@ -10,6 +19,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 COPY poc ./poc
+# built SPA served by FastAPI at "/"
+COPY --from=frontend /fe/dist ./app/web/spa
 
 ENV YTA_DB_PATH=/config/youtubarr.db \
     YTA_LIBRARY_PATH=/movies \

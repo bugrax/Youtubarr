@@ -92,13 +92,15 @@ Youtubarr borrows its *concepts* (not its language) from Radarr/Sonarr (the
 - [x] Decision engine: specifications with rejection reasons + scoring
 - [x] Download client: yt-dlp worker with progress (+ subtitles)
 - [x] Import: ffprobe verification + Jellyfin library rename
-- [x] Minimal built-in web dashboard (wanted, search, queue)
-- [x] Docker image + compose
-- [ ] Indexer: official-channel feeds (poll for new uploads)
-- [ ] Full React + Vite SPA (replace the built-in dashboard)
-- [ ] Quality profiles (resolution/codec preference)
-- [ ] Notifications (ntfy)
-- [ ] TMDB import lists (independent of Radarr)
+- [x] Web dashboard
+- [x] Full React + Vite + TypeScript SPA (served by FastAPI, with built-in fallback)
+- [x] Docker image + compose (multi-stage: node build + python runtime)
+- [x] Indexer: official-channel feeds (poll for new uploads → match wanted)
+- [x] Notifications (ntfy) on grab / import / failure
+- [x] TMDB import list (discover Turkish films independently of Radarr)
+- [x] Quality preference (resolution/codec via `YTA_YT_FORMAT`)
+- [ ] Per-profile quality system + custom formats UI
+- [ ] Interactive search UI (pick among candidates)
 
 ## Status
 
@@ -120,6 +122,11 @@ Runs as a Docker container on the `media` network alongside Radarr/Sonarr.
 | `YTA_ACCEPT_SCORE` | `0.6` | Min score to auto-accept a match |
 | `YTA_AUTO_DOWNLOAD` | `false` | Auto-grab matched films on each cycle |
 | `YTA_SYNC_INTERVAL_MIN` | `360` | Scheduler interval (0 = disabled) |
+| `YTA_NTFY_TOPIC` | — | ntfy topic for grab/import/failure push (empty = off) |
+| `YTA_CHANNEL_FEEDS` | — | Official channels to poll (`@handle` or URL, comma-separated) |
+| `YTA_TMDB_API_KEY` | — | TMDB key for the independent import list |
+| `YTA_TMDB_LIST_ENABLED` | `false` | Include TMDB discover in the scheduled cycle |
+| `YTA_YT_FORMAT` | `bv*[height<=1080]+ba/...` | yt-dlp format selector (quality) |
 
 ### Run with Docker
 

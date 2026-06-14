@@ -17,7 +17,7 @@ from starlette.requests import Request
 from .config import get_settings
 from .db import engine, get_session, init_db
 from .models import Blocklist, DownloadJob, Film, FilmStatus
-from .services import tasks
+from .services import tasks, tmdb
 from .services.matcher import match_and_store
 from .services.radarr import RadarrClient
 
@@ -46,8 +46,14 @@ async def lifespan(app: FastAPI):
 
 
 def _scheduled_cycle():
-    tasks.sync_from_radarr()
+    s = get_settings()
+    if s.radarr_url:
+        tasks.sync_from_radarr()
+    if s.tmdb_list_enabled:
+        tmdb.sync()
     res = tasks.search_wanted()
+    if s.channel_feeds:
+        tasks.poll_channels()
     if get_settings().auto_download:
         with Session(engine) as s:
             matched = s.exec(select(Film).where(Film.status == FilmStatus.matched)).all()
@@ -62,8 +68,17 @@ app.mount("/static", StaticFiles(directory=str(_BASE / "web" / "static")), name=
 
 # ---- UI ------------------------------------------------------------------
 
+_SPA = _BASE / "web" / "spa"
+if (_SPA / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=str(_SPA / "assets")), name="spa-assets")
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
+    # Prefer the built React SPA; fall back to the minimal built-in dashboard.
+    spa_index = _SPA / "index.html"
+    if spa_index.exists():
+        return HTMLResponse(spa_index.read_text(encoding="utf-8"))
     return templates.TemplateResponse("index.html", {"request": request})
 
 
@@ -92,6 +107,16 @@ def sync():
 @app.post("/api/search")
 def search(limit: int = 50):
     return tasks.search_wanted(limit=limit)
+
+
+@app.post("/api/tmdb/sync")
+def tmdb_sync(pages: int = 2):
+    return tmdb.sync(pages=pages)
+
+
+@app.post("/api/channels/poll")
+def channels_poll():
+    return tasks.poll_channels()
 
 
 @app.get("/api/films")

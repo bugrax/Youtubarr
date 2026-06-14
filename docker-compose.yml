@@ -12,11 +12,20 @@ services:
       - /root/downloads:/downloads        # çalışma alanı (youtubarr/ alt klasörü)
     environment:
       - TZ=Europe/Istanbul
+      # --- Radarr (wanted listesi kaynağı) ---
       - YTA_RADARR_URL=http://radarr:7878
       - YTA_RADARR_API_KEY=${RADARR_API_KEY}
       - YTA_RADARR_LANGUAGE=Turkish
+      # --- zamanlama / otomasyon ---
       - YTA_SYNC_INTERVAL_MIN=360
-      - YTA_AUTO_DOWNLOAD=false
+      - YTA_AUTO_DOWNLOAD=${YTA_AUTO_DOWNLOAD:-false}
+      # --- ntfy bildirim (film eklenince telefona) ---
+      - YTA_NTFY_TOPIC=${YTA_NTFY_TOPIC:-}
+      # --- resmi YouTube kanalları (yeni yükleme takibi) ---
+      - YTA_CHANNEL_FEEDS=${YTA_CHANNEL_FEEDS:-}
+      # --- TMDB import listesi (Radarr'dan bağımsız; opsiyonel) ---
+      - YTA_TMDB_API_KEY=${YTA_TMDB_API_KEY:-}
+      - YTA_TMDB_LIST_ENABLED=${YTA_TMDB_LIST_ENABLED:-false}
     networks:
       - media
 

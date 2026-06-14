@@ -7,7 +7,11 @@ from sqlmodel import Session, select
 
 from ..db import engine
 from ..models import DownloadJob, Film, FilmStatus, JobState
+from ..config import get_settings
+from ..decision.engine import DecisionEngine
+from ..providers import notifier
 from ..providers.downloader import YtDlpDownloader
+from ..providers.indexer import YouTubeIndexer
 from .importer import import_file, verify
 from .matcher import match_and_store
 from .radarr import RadarrClient
@@ -56,6 +60,43 @@ def search_wanted(limit: int = 50) -> dict:
     return {"ok": True, "searched": len(results), "matched": matched, "results": results}
 
 
+def poll_channels() -> dict:
+    """Fetch recent uploads from configured official channels and match them
+    against still-wanted films (the RSS-sync equivalent)."""
+    s = get_settings()
+    if not s.channel_feeds:
+        return {"ok": False, "error": "kanal feed'i yok"}
+    indexer = YouTubeIndexer()
+    engine_ = DecisionEngine()
+    uploads = []
+    for ch in s.channel_feeds:
+        ups = indexer.channel_uploads(ch, s.channel_feed_limit)
+        log.info("kanal %s: %s yükleme", ch, len(ups))
+        uploads.extend(ups)
+    matched = 0
+    with Session(engine) as sess:
+        wanted = sess.exec(
+            select(Film).where(Film.status == FilmStatus.wanted, Film.monitored == True)  # noqa: E712
+        ).all()
+        threshold = s.accept_score
+        for film in wanted:
+            best = None
+            for up in uploads:
+                ev = engine_.evaluate(up, film)
+                if ev.accepted and ev.score >= threshold and (not best or ev.score > best.score):
+                    best = ev
+            if best:
+                film.status = FilmStatus.matched
+                film.youtube_id = best.release.youtube_id
+                film.youtube_title = best.release.title
+                film.youtube_channel = best.release.channel
+                film.match_score = round(best.score, 3)
+                sess.add(film)
+                matched += 1
+        sess.commit()
+    return {"ok": True, "channels": len(s.channel_feeds), "uploads": len(uploads), "matched": matched}
+
+
 def run_download(film_id: int) -> None:
     """Download → verify → import a single film. Updates DownloadJob + Film."""
     dl = YtDlpDownloader()
@@ -70,6 +111,7 @@ def run_download(film_id: int) -> None:
         s.commit()
         s.refresh(job)
         job_id, yt_id, runtime = job.id, film.youtube_id, film.runtime
+        notifier.notify_grabbed(film)
 
     def on_progress(p: dict):
         with Session(engine) as s:
@@ -97,6 +139,7 @@ def run_download(film_id: int) -> None:
             j.state = JobState.done
             j.file_path = dest
             s.add(j); s.commit()
+            notifier.notify_imported(film, dest)
         log.info("imported %s -> %s", film_id, dest)
     except Exception as e:  # noqa: BLE001
         _fail(job_id, film_id, str(e))
@@ -123,3 +166,5 @@ def _fail(job_id: int, film_id: int, message: str) -> None:
             film.status = FilmStatus.failed
             s.add(film)
         s.commit()
+        if film:
+            notifier.notify_failed(film, message)

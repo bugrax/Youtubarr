@@ -82,3 +82,20 @@ class YouTubeIndexer:
             for r in self.search(q):
                 seen.setdefault(r.youtube_id, r)
         return list(seen.values())
+
+    def channel_uploads(self, channel: str, limit: int = 30) -> list[Release]:
+        """Recent uploads of a YouTube channel (@handle, /c/, or full URL)."""
+        if channel.startswith("@"):
+            url = f"https://www.youtube.com/{channel}/videos"
+        elif channel.startswith("http"):
+            url = channel if "/videos" in channel else channel.rstrip("/") + "/videos"
+        else:
+            url = f"https://www.youtube.com/@{channel}/videos"
+        try:
+            raw = _run_ytdlp([
+                url, "--flat-playlist", "--dump-json", "--no-warnings",
+                "--playlist-end", str(limit),
+            ], timeout=120)
+        except subprocess.TimeoutExpired:
+            return []
+        return self._parse(raw)
