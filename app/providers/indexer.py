@@ -75,10 +75,20 @@ class YouTubeIndexer:
         return self._parse(raw)
 
     def search_film(self, original_title: str, title: str = "", year: int | None = None) -> list[Release]:
-        """Search a film by its title(s), merging and de-duplicating results."""
+        """Search a film by its title(s) across several query variants.
+
+        Bare titles (e.g. "Uzak", "Yol") are common words that drown in unrelated
+        results, so we also try "<title> full film", "<title> filmi" and
+        "<title> <year>" and merge everything, de-duplicating by video id.
+        """
+        primary = original_title or title
+        queries = [primary, f"{primary} full film"]
+        if year:
+            queries.append(f"{primary} {year}")
+        if title and title != original_title:
+            queries.append(f"{title} full movie")
         seen: dict[str, Release] = {}
-        queries = [q for q in {original_title, title} if q]
-        for q in queries:
+        for q in dict.fromkeys(queries):
             for r in self.search(q):
                 seen.setdefault(r.youtube_id, r)
         return list(seen.values())
