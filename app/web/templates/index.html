@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Youtubarr</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header>
+    <h1>🎬 Youtubarr</h1>
+    <span id="health" class="muted">…</span>
+  </header>
+
+  <section class="bar">
+    <button onclick="sync()">↻ Radarr'dan Senkronla</button>
+    <button onclick="searchAll()">🔍 Wanted'ı Ara</button>
+    <button onclick="loadFilms()">⟳ Yenile</button>
+    <span id="stats" class="muted"></span>
+  </section>
+
+  <table id="films">
+    <thead><tr>
+      <th>Film</th><th>Yıl</th><th>Süre</th><th>Durum</th>
+      <th>YouTube Eşleşme</th><th>Skor</th><th></th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>İndirme Kuyruğu</h2>
+  <table id="jobs">
+    <thead><tr><th>Film</th><th>Durum</th><th>İlerleme</th><th>Hız</th><th>ETA</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

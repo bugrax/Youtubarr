@@ -86,14 +86,48 @@ Youtubarr borrows its *concepts* (not its language) from Radarr/Sonarr (the
 ## Roadmap
 
 - [x] Validate YouTube matching concept (duration + title + channel)
-- [ ] Project scaffold (FastAPI backend, SQLite, Vite/React frontend)
-- [ ] TMDB metadata + wanted list (and/or Radarr API sync)
-- [ ] Indexer: YouTube search + official-channel feeds
-- [ ] Decision engine: specifications with rejection reasons
-- [ ] Download client: yt-dlp worker with progress
-- [ ] Import: ffprobe verification + library rename for Jellyfin
-- [ ] Web UI: wanted, search, queue, settings
+- [x] Project scaffold (FastAPI backend, SQLite)
+- [x] Wanted list via Radarr API sync (filter by original language)
+- [x] Indexer: YouTube search (yt-dlp)
+- [x] Decision engine: specifications with rejection reasons + scoring
+- [x] Download client: yt-dlp worker with progress (+ subtitles)
+- [x] Import: ffprobe verification + Jellyfin library rename
+- [x] Minimal built-in web dashboard (wanted, search, queue)
+- [x] Docker image + compose
+- [ ] Indexer: official-channel feeds (poll for new uploads)
+- [ ] Full React + Vite SPA (replace the built-in dashboard)
+- [ ] Quality profiles (resolution/codec preference)
 - [ ] Notifications (ntfy)
+- [ ] TMDB import lists (independent of Radarr)
+
+## Status
+
+End-to-end working (validated locally against a real Radarr + on YouTube):
+Radarr sync → YouTube search → decision → download → ffprobe verify → import.
+Runs as a Docker container on the `media` network alongside Radarr/Sonarr.
+
+### Configuration (environment variables)
+
+| Var | Default | Meaning |
+|-----|---------|---------|
+| `YTA_RADARR_URL` | — | Radarr base URL (e.g. `http://radarr:7878`) |
+| `YTA_RADARR_API_KEY` | — | Radarr API key |
+| `YTA_RADARR_LANGUAGE` | `Turkish` | Only sync films with this original language (empty = all) |
+| `YTA_LIBRARY_PATH` | `/movies` | Library destination |
+| `YTA_DOWNLOAD_PATH` | `/downloads/youtubarr` | Working dir |
+| `YTA_DURATION_TOLERANCE` | `0.15` | Allowed runtime deviation |
+| `YTA_MIN_TITLE_OVERLAP` | `0.6` | Min title-token overlap to accept |
+| `YTA_ACCEPT_SCORE` | `0.6` | Min score to auto-accept a match |
+| `YTA_AUTO_DOWNLOAD` | `false` | Auto-grab matched films on each cycle |
+| `YTA_SYNC_INTERVAL_MIN` | `360` | Scheduler interval (0 = disabled) |
+
+### Run with Docker
+
+```bash
+cp .env.example .env   # put your Radarr API key in it
+docker compose up -d --build
+# dashboard at http://localhost:8585
+```
 
 ## Running the PoC
 

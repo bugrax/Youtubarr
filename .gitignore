@@ -17,3 +17,7 @@ dist/
 *.log
 .env
 /tmp/
+
+# local test data
+/data/
+/config/
