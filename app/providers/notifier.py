@@ -33,15 +33,15 @@ def _send(title: str, message: str, priority: str = "default", tags: str = "") -
 
 def notify_imported(film, path: str) -> None:  # noqa: ANN001
     _send(
-        "🎬 Youtubarr: film eklendi",
-        f"{film.title} ({film.year or '?'})\nKanal: {film.youtube_channel or '-'}",
+        "Youtubarr: film added",
+        f"{film.title} ({film.year or '?'})\nChannel: {film.youtube_channel or '-'}",
         priority="default", tags="clapper,white_check_mark",
     )
 
 
 def notify_failed(film, message: str) -> None:  # noqa: ANN001
     _send(
-        "⚠️ Youtubarr: indirme başarısız",
+        "Youtubarr: download failed",
         f"{film.title} ({film.year or '?'})\n{message}",
         priority="high", tags="warning",
     )
@@ -49,7 +49,7 @@ def notify_failed(film, message: str) -> None:  # noqa: ANN001
 
 def notify_grabbed(film) -> None:  # noqa: ANN001
     _send(
-        "⬇️ Youtubarr: indirme başladı",
+        "Youtubarr: download started",
         f"{film.title} ({film.year or '?'})\n{film.youtube_title or ''}",
         priority="low", tags="arrow_down",
     )

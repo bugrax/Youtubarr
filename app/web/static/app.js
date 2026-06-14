@@ -36,7 +36,7 @@ async function loadJobs(){
     <td>${j.progress||0}%</td><td>${j.speed||''}</td><td>${j.eta||''}</td></tr>`).join('');
 }
 async function sync(){ await api('/api/sync','POST'); loadFilms(); }
-async function searchAll(){ $('#stats').textContent='aranıyor…'; await api('/api/search','POST'); loadFilms(); }
+async function searchAll(){ $('#stats').textContent='searching…'; await api('/api/search','POST'); loadFilms(); }
 async function searchOne(id){ await api(`/api/films/${id}/search`); loadFilms(); }
 async function grab(id){ await api(`/api/films/${id}/grab`,'POST'); loadFilms(); }
 

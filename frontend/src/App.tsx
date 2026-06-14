@@ -61,24 +61,24 @@ export default function App() {
         <span className="muted">
           {r?.configured
             ? r.ok
-              ? `Radarr v${r.version} bağlı ✓`
-              : `Radarr hata: ${r.error}`
-            : "Radarr ayarlı değil"}
+              ? `Radarr v${r.version} connected ✓`
+              : `Radarr error: ${r.error}`
+            : "Radarr not configured"}
         </span>
       </header>
 
       <div className="bar">
         <button disabled={!!busy} onClick={() => run("sync", api.sync)}>
-          {busy === "sync" ? "…" : "↻ Radarr senkron"}
+          {busy === "sync" ? "…" : "↻ Sync Radarr"}
         </button>
         <button disabled={!!busy} onClick={() => run("search", api.searchAll)}>
-          {busy === "search" ? "aranıyor…" : "🔍 Wanted'ı ara"}
+          {busy === "search" ? "searching…" : "🔍 Search wanted"}
         </button>
         <button className="ghost" disabled={!!busy} onClick={() => run("tmdb", api.tmdbSync)}>
-          {busy === "tmdb" ? "…" : "＋ TMDB listesi"}
+          {busy === "tmdb" ? "…" : "＋ TMDB list"}
         </button>
         <button className="ghost" disabled={!!busy} onClick={() => run("chan", api.pollChannels)}>
-          {busy === "chan" ? "…" : "📡 Kanal feed"}
+          {busy === "chan" ? "…" : "📡 Channel feed"}
         </button>
         <span className="stats">
           {STATUSES.filter(Boolean).map((s) => (
@@ -88,7 +88,7 @@ export default function App() {
           ))}
           {filter && (
             <span className="pill clear" onClick={() => setFilter("")}>
-              ✕ filtre
+              ✕ filter
             </span>
           )}
         </span>
@@ -98,11 +98,11 @@ export default function App() {
         <thead>
           <tr>
             <th>Film</th>
-            <th>Yıl</th>
-            <th>Süre</th>
-            <th>Durum</th>
-            <th>YouTube eşleşme</th>
-            <th>Skor</th>
+            <th>Year</th>
+            <th>Runtime</th>
+            <th>Status</th>
+            <th>YouTube match</th>
+            <th>Score</th>
             <th></th>
           </tr>
         </thead>
@@ -114,7 +114,7 @@ export default function App() {
                 {f.source === "tmdb" && <span className="src">tmdb</span>}
               </td>
               <td>{f.year}</td>
-              <td>{f.runtime ? `${f.runtime}dk` : ""}</td>
+              <td>{f.runtime ? `${f.runtime} min` : ""}</td>
               <td>
                 <Badge s={f.status} />
               </td>
@@ -151,16 +151,16 @@ export default function App() {
         </tbody>
       </table>
 
-      <h2>İndirme kuyruğu</h2>
+      <h2>Download queue</h2>
       <table>
         <thead>
           <tr>
             <th>Film</th>
-            <th>Durum</th>
-            <th>İlerleme</th>
-            <th>Hız</th>
+            <th>State</th>
+            <th>Progress</th>
+            <th>Speed</th>
             <th>ETA</th>
-            <th>Mesaj</th>
+            <th>Message</th>
           </tr>
         </thead>
         <tbody>
@@ -184,7 +184,7 @@ export default function App() {
           {jobs.length === 0 && (
             <tr>
               <td colSpan={6} className="muted">
-                kuyruk boş
+                queue empty
               </td>
             </tr>
           )}

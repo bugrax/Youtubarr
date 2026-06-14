@@ -13,23 +13,23 @@
   </header>
 
   <section class="bar">
-    <button onclick="sync()">↻ Radarr'dan Senkronla</button>
-    <button onclick="searchAll()">🔍 Wanted'ı Ara</button>
-    <button onclick="loadFilms()">⟳ Yenile</button>
+    <button onclick="sync()">↻ Sync Radarr</button>
+    <button onclick="searchAll()">🔍 Search wanted</button>
+    <button onclick="loadFilms()">⟳ Refresh</button>
     <span id="stats" class="muted"></span>
   </section>
 
   <table id="films">
     <thead><tr>
-      <th>Film</th><th>Yıl</th><th>Süre</th><th>Durum</th>
-      <th>YouTube Eşleşme</th><th>Skor</th><th></th>
+      <th>Film</th><th>Year</th><th>Runtime</th><th>Status</th>
+      <th>YouTube match</th><th>Score</th><th></th>
     </tr></thead>
     <tbody></tbody>
   </table>
 
-  <h2>İndirme Kuyruğu</h2>
+  <h2>Download queue</h2>
   <table id="jobs">
-    <thead><tr><th>Film</th><th>Durum</th><th>İlerleme</th><th>Hız</th><th>ETA</th></tr></thead>
+    <thead><tr><th>Film</th><th>State</th><th>Progress</th><th>Speed</th><th>ETA</th></tr></thead>
     <tbody></tbody>
   </table>
 
