@@ -46,16 +46,24 @@ def verify(path: str, expected_runtime_min: int) -> tuple[bool, str]:
     return True, "ok"
 
 
-def import_file(src: str, film) -> str:  # noqa: ANN001
-    """Move src into the library; return the destination path."""
+def import_file(src: str, film, dest_dir: str | None = None) -> str:  # noqa: ANN001
+    """Move src into the library; return the destination path.
+
+    If dest_dir is given (e.g. Radarr's exact movie folder path), import there so
+    a downstream Radarr rescan finds the file; otherwise build a Jellyfin-style
+    `{Title} ({Year}) [tmdbid-N]` folder.
+    """
     s = get_settings()
     year = film.year or ""
-    folder = _safe(f"{film.title} ({year})") if year else _safe(film.title)
-    folder = f"{folder} [tmdbid-{film.tmdb_id}]"
-    dest_dir = os.path.join(s.library_path, folder)
-    os.makedirs(dest_dir, exist_ok=True)
+    if dest_dir:
+        os.makedirs(dest_dir, exist_ok=True)
+        base = os.path.basename(dest_dir.rstrip("/")) or _safe(film.title)
+    else:
+        base = _safe(f"{film.title} ({year})") if year else _safe(film.title)
+        dest_dir = os.path.join(s.library_path, f"{base} [tmdbid-{film.tmdb_id}]")
+        os.makedirs(dest_dir, exist_ok=True)
     ext = os.path.splitext(src)[1] or ".mkv"
-    dest = os.path.join(dest_dir, _safe(f"{film.title} ({year})") + ext)
+    dest = os.path.join(dest_dir, _safe(base) + ext)
     shutil.move(src, dest)
     # tidy up the now-empty per-id working dir
     try:

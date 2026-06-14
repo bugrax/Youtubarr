@@ -131,7 +131,14 @@ def run_download(film_id: int) -> None:
             return
         with Session(engine) as s:
             film = s.get(Film, film_id)
-            dest = import_file(path, film)
+            # import into Radarr's exact folder when known, so a rescan finds it
+            rc = RadarrClient()
+            rmovie = None
+            try:
+                rmovie = rc.get_movie(film.tmdb_id) if rc.configured else None
+            except Exception:  # noqa: BLE001
+                rmovie = None
+            dest = import_file(path, film, dest_dir=(rmovie or {}).get("path"))
             film.status = FilmStatus.imported
             film.library_path = dest
             s.add(film)
@@ -141,11 +148,12 @@ def run_download(film_id: int) -> None:
             s.add(j); s.commit()
             notifier.notify_imported(film, dest)
             # tell Radarr to rescan so it also marks the film as downloaded
-            try:
-                if RadarrClient().rescan_by_tmdb(film.tmdb_id):
+            if rmovie:
+                try:
+                    rc.rescan_movie(rmovie["id"])
                     log.info("radarr rescan tetiklendi (tmdb %s)", film.tmdb_id)
-            except Exception as e:  # noqa: BLE001
-                log.warning("radarr rescan başarısız: %s", e)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("radarr rescan başarısız: %s", e)
         log.info("imported %s -> %s", film_id, dest)
     except Exception as e:  # noqa: BLE001
         _fail(job_id, film_id, str(e))

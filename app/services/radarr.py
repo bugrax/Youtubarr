@@ -34,15 +34,23 @@ class RadarrClient:
         r.raise_for_status()
         return r.json()
 
+    def get_movie(self, tmdb_id: int) -> dict | None:
+        """The Radarr movie record for a TMDB id (has 'id' and 'path'), or None."""
+        if not self.configured:
+            return None
+        movies = self._get("movie", tmdbId=tmdb_id)
+        return movies[0] if movies else None
+
+    def rescan_movie(self, movie_id: int) -> None:
+        self._post("command", {"name": "RescanMovie", "movieId": movie_id})
+
     def rescan_by_tmdb(self, tmdb_id: int) -> bool:
         """Ask Radarr to rescan a movie's folder so it picks up a file Youtubarr
         just dropped into the shared library. Returns True if a command was sent."""
-        if not self.configured:
+        movie = self.get_movie(tmdb_id)
+        if not movie:
             return False
-        movies = self._get("movie", tmdbId=tmdb_id)
-        if not movies:
-            return False
-        self._post("command", {"name": "RescanMovie", "movieId": movies[0]["id"]})
+        self.rescan_movie(movie["id"])
         return True
 
     def ping(self) -> dict:
