@@ -4,6 +4,7 @@ services:
     image: youtubarr:latest
     container_name: youtubarr
     restart: unless-stopped
+    init: true   # reap zombie yt-dlp subprocesses (PID 1 otherwise can't)
     ports:
       - "8585:8585"
     volumes:
