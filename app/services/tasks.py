@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 
 from sqlmodel import Session, select
 
@@ -97,8 +98,28 @@ def poll_channels() -> dict:
     return {"ok": True, "channels": len(s.channel_feeds), "uploads": len(uploads), "matched": matched}
 
 
+_active_lock = threading.Lock()
+_active: set[int] = set()
+
+
 def run_download(film_id: int) -> None:
-    """Download → verify → import a single film. Updates DownloadJob + Film."""
+    """Download → verify → import a single film. Updates DownloadJob + Film.
+
+    Guarded so the same film can't be downloaded by two workers at once (that
+    races on the same temp file and corrupts the download)."""
+    with _active_lock:
+        if film_id in _active:
+            log.info("zaten indiriliyor, atlandı: %s", film_id)
+            return
+        _active.add(film_id)
+    try:
+        _run_download(film_id)
+    finally:
+        with _active_lock:
+            _active.discard(film_id)
+
+
+def _run_download(film_id: int) -> None:
     dl = YtDlpDownloader()
     with Session(engine) as s:
         film = s.get(Film, film_id)

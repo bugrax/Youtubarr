@@ -22,8 +22,13 @@ class YtDlpDownloader:
         os.makedirs(self.s.download_path, exist_ok=True)
 
     def download(self, youtube_id: str, on_progress: ProgressCb | None = None) -> str:
-        """Download a video; return the final file path. Raises on failure."""
-        outtmpl = os.path.join(self.s.download_path, "%(id)s", "%(title)s [%(id)s].%(ext)s")
+        """Download a video; return the final file path. Raises on failure.
+
+        Output is named by video id only (short, ASCII) — YouTube titles can be
+        long/contain fullwidth chars and overflow the 255-byte filename limit,
+        which made yt-dlp's final rename fail. The importer renames properly later.
+        """
+        outtmpl = os.path.join(self.s.download_path, "%(id)s", "%(id)s.%(ext)s")
         result_path: dict[str, str] = {}
 
         def _hook(d: dict):
