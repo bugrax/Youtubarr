@@ -66,12 +66,21 @@ class DurationMatchSpec(Spec):
         return Decision.accept()
 
 
+def best_title_overlap(film, candidate_title: str) -> float:
+    """Max token overlap against either the original or the English title.
+
+    Many films are uploaded under their English title (e.g. Yazgı -> "Fate",
+    Kabadayı -> "For Love and Honor"), so checking only the original misses them.
+    """
+    refs = [t for t in {film.original_title, film.title} if t]
+    return max((title_overlap(r, candidate_title) for r in refs), default=0.0)
+
+
 class TitleMatchSpec(Spec):
     priority = 2
     def is_satisfied_by(self, release, film):
         s = get_settings()
-        ref = film.original_title or film.title
-        if title_overlap(ref, release.title) < s.min_title_overlap:
+        if best_title_overlap(film, release.title) < s.min_title_overlap:
             return Decision.reject("başlık uymadı")
         return Decision.accept()
 
@@ -92,7 +101,7 @@ def score(release: Release, film) -> float:
         dur_score = max(0.0, 1 - abs(1 - ratio) * 2)
     else:
         dur_score = 0.3
-    overlap = title_overlap(film.original_title or film.title, release.title)
+    overlap = best_title_overlap(film, release.title)
     view_score = min(1.0, math.log10(release.view_count + 1) / 7.0)
     official_bonus = 0.10 if is_official(release.channel) else 0.0
     return dur_score * 0.45 + overlap * 0.30 + view_score * 0.15 + official_bonus
