@@ -25,6 +25,26 @@ class RadarrClient:
         r.raise_for_status()
         return r.json()
 
+    def _post(self, path: str, payload: dict):
+        r = httpx.post(
+            f"{self.url}/api/v3/{path}",
+            headers={"X-Api-Key": self.api_key},
+            json=payload, timeout=60,
+        )
+        r.raise_for_status()
+        return r.json()
+
+    def rescan_by_tmdb(self, tmdb_id: int) -> bool:
+        """Ask Radarr to rescan a movie's folder so it picks up a file Youtubarr
+        just dropped into the shared library. Returns True if a command was sent."""
+        if not self.configured:
+            return False
+        movies = self._get("movie", tmdbId=tmdb_id)
+        if not movies:
+            return False
+        self._post("command", {"name": "RescanMovie", "movieId": movies[0]["id"]})
+        return True
+
     def ping(self) -> dict:
         return self._get("system/status")
 

@@ -140,6 +140,12 @@ def run_download(film_id: int) -> None:
             j.file_path = dest
             s.add(j); s.commit()
             notifier.notify_imported(film, dest)
+            # tell Radarr to rescan so it also marks the film as downloaded
+            try:
+                if RadarrClient().rescan_by_tmdb(film.tmdb_id):
+                    log.info("radarr rescan tetiklendi (tmdb %s)", film.tmdb_id)
+            except Exception as e:  # noqa: BLE001
+                log.warning("radarr rescan başarısız: %s", e)
         log.info("imported %s -> %s", film_id, dest)
     except Exception as e:  # noqa: BLE001
         _fail(job_id, film_id, str(e))
