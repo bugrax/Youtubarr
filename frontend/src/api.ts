@@ -22,6 +22,8 @@ export interface Job {
   speed: string | null;
   eta: string | null;
   message: string | null;
+  title: string;
+  year: number | null;
 }
 
 export interface Health {
@@ -45,5 +47,7 @@ export const api = {
   pollChannels: () => j("/api/channels/poll", "POST"),
   searchOne: (id: number) => j(`/api/films/${id}/search`),
   grab: (id: number) => j(`/api/films/${id}/grab`, "POST"),
+  retry: (id: number) => j(`/api/films/${id}/retry`, "POST"),
   blocklist: (id: number) => j(`/api/films/${id}/blocklist`, "POST"),
+  clearJobs: (state: "done" | "failed" | "all") => j(`/api/jobs/clear?state=${state}`, "POST"),
 };

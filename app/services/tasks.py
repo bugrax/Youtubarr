@@ -99,24 +99,29 @@ def poll_channels() -> dict:
 
 
 _active_lock = threading.Lock()
-_active: set[int] = set()
+_active: set[str] = set()
 
 
 def run_download(film_id: int) -> None:
     """Download → verify → import a single film. Updates DownloadJob + Film.
 
-    Guarded so the same film can't be downloaded by two workers at once (that
-    races on the same temp file and corrupts the download)."""
+    Guarded by youtube_id so the same video is never downloaded by two workers at
+    once (even if two films matched it) — that races on the same temp file."""
+    with Session(engine) as s:
+        film = s.get(Film, film_id)
+        yt = film.youtube_id if film else None
+    if not yt:
+        return
     with _active_lock:
-        if film_id in _active:
-            log.info("zaten indiriliyor, atlandı: %s", film_id)
+        if yt in _active:
+            log.info("zaten indiriliyor (yt %s), atlandı", yt)
             return
-        _active.add(film_id)
+        _active.add(yt)
     try:
         _run_download(film_id)
     finally:
         with _active_lock:
-            _active.discard(film_id)
+            _active.discard(yt)
 
 
 def _run_download(film_id: int) -> None:

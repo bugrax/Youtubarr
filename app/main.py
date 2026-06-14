@@ -163,7 +163,49 @@ def blocklist(film_id: int, session: Session = Depends(get_session)):
 
 @app.get("/api/jobs")
 def jobs(session: Session = Depends(get_session)):
-    return session.exec(select(DownloadJob).order_by(DownloadJob.id.desc())).all()
+    rows = session.exec(select(DownloadJob).order_by(DownloadJob.id.desc())).all()
+    fids = {r.film_id for r in rows}
+    films = ({f.id: f for f in session.exec(select(Film).where(Film.id.in_(fids))).all()}
+             if fids else {})
+    out = []
+    for r in rows:
+        d = r.model_dump()
+        f = films.get(r.film_id)
+        d["title"] = (f.original_title or f.title) if f else f"#{r.film_id}"
+        d["year"] = f.year if f else None
+        out.append(d)
+    return out
+
+
+@app.post("/api/jobs/clear")
+def clear_jobs(state: str = "done", session: Session = Depends(get_session)):
+    """Remove finished jobs from the queue. state = done | failed | all."""
+    q = select(DownloadJob)
+    if state in ("done", "failed"):
+        q = q.where(DownloadJob.state == state)
+    elif state == "all":
+        q = q.where(DownloadJob.state.in_(["done", "failed"]))  # never nuke active
+    else:
+        raise HTTPException(400, "state: done|failed|all")
+    rows = session.exec(q).all()
+    for j in rows:
+        session.delete(j)
+    session.commit()
+    return {"ok": True, "cleared": len(rows)}
+
+
+@app.post("/api/films/{film_id}/retry")
+def retry(film_id: int, session: Session = Depends(get_session)):
+    film = session.get(Film, film_id)
+    if not film:
+        raise HTTPException(404, "film yok")
+    if not film.youtube_id:
+        raise HTTPException(400, "eşleşme yok")
+    film.status = FilmStatus.matched
+    session.add(film)
+    session.commit()
+    _pool.submit(tasks.run_download, film_id)
+    return {"ok": True, "retrying": film_id}
 
 
 @app.get("/api/stats")

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 from collections.abc import Callable
 
 import yt_dlp
@@ -28,7 +29,12 @@ class YtDlpDownloader:
         long/contain fullwidth chars and overflow the 255-byte filename limit,
         which made yt-dlp's final rename fail. The importer renames properly later.
         """
-        outtmpl = os.path.join(self.s.download_path, "%(id)s", "%(id)s.%(ext)s")
+        # Fresh per-video dir each time: a stale .part left by an interrupted run
+        # makes yt-dlp's resume + final rename fail ("No such file").
+        vid_dir = os.path.join(self.s.download_path, youtube_id)
+        shutil.rmtree(vid_dir, ignore_errors=True)
+        os.makedirs(vid_dir, exist_ok=True)
+        outtmpl = os.path.join(vid_dir, "%(id)s.%(ext)s")
         result_path: dict[str, str] = {}
 
         def _hook(d: dict):
