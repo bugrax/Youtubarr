@@ -36,8 +36,15 @@ class Settings:
     accept_score: float = float(os.getenv("YTA_ACCEPT_SCORE", "0.6"))
     search_results: int = int(os.getenv("YTA_SEARCH_RESULTS", "12"))
 
-    # yt-dlp download format.
-    yt_format: str = os.getenv("YTA_YT_FORMAT", "bv*[height<=1080]+ba/b[height<=1080]/b")
+    # yt-dlp download format. Prefer H.264 (avc1) + AAC for direct-play on
+    # Apple TV / Jellyfin; fall back to any 1080p, then anything.
+    yt_format: str = os.getenv(
+        "YTA_YT_FORMAT",
+        "bv*[vcodec^=avc1][height<=1080]+ba[acodec^=mp4a]/"
+        "bv*[vcodec^=avc1][height<=1080]+ba/"
+        "b[vcodec^=avc1][height<=1080]/"
+        "bv*[height<=1080]+ba/b[height<=1080]/b",
+    )
 
     # Scheduler intervals (minutes); 0 disables.
     sync_interval_min: int = int(os.getenv("YTA_SYNC_INTERVAL_MIN", "360"))
