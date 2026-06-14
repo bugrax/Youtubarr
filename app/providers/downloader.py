@@ -1,18 +1,26 @@
-"""yt-dlp download client — the Servarr 'DownloadClient' equivalent."""
+"""yt-dlp download client — the Servarr 'DownloadClient' equivalent.
+
+Runs yt-dlp as a SUBPROCESS (one process per download). The in-process
+yt_dlp.YoutubeDL API is not safe to run concurrently across threads — two
+parallel downloads in the same interpreter race on temp/rename operations and
+fail ("Unable to rename ... No such file"). A separate process per download is
+fully isolated and safe to run in parallel.
+"""
 from __future__ import annotations
 
 import os
 import re
 import shutil
+import subprocess
 from collections.abc import Callable
-
-import yt_dlp
 
 from ..config import get_settings
 
 ProgressCb = Callable[[dict], None]
 
-_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+# [download]  12.3% of ~600.00MiB at 4.50MiB/s ETA 02:10
+_PROG = re.compile(r"\[download\]\s+([\d.]+)%\s+of\s+\S+\s+at\s+(\S+)\s+ETA\s+(\S+)")
+_VIDEO_EXT = (".mkv", ".mp4", ".webm", ".avi", ".m4v")
 
 
 class YtDlpDownloader:
@@ -23,60 +31,48 @@ class YtDlpDownloader:
         os.makedirs(self.s.download_path, exist_ok=True)
 
     def download(self, youtube_id: str, on_progress: ProgressCb | None = None) -> str:
-        """Download a video; return the final file path. Raises on failure.
-
-        Output is named by video id only (short, ASCII) — YouTube titles can be
-        long/contain fullwidth chars and overflow the 255-byte filename limit,
-        which made yt-dlp's final rename fail. The importer renames properly later.
-        """
-        # Fresh per-video dir each time: a stale .part left by an interrupted run
-        # makes yt-dlp's resume + final rename fail ("No such file").
+        """Download a video; return the final merged file path. Raises on failure."""
+        # Fresh per-video dir each time so a stale .part can't break the run.
         vid_dir = os.path.join(self.s.download_path, youtube_id)
         shutil.rmtree(vid_dir, ignore_errors=True)
         os.makedirs(vid_dir, exist_ok=True)
-        outtmpl = os.path.join(vid_dir, "%(id)s.%(ext)s")
-        result_path: dict[str, str] = {}
 
-        def _hook(d: dict):
-            if d.get("status") == "downloading" and on_progress:
-                total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
-                done = d.get("downloaded_bytes") or 0
-                pct = (done / total * 100) if total else 0.0
+        cmd = [
+            "yt-dlp",
+            "-f", self.s.yt_format,
+            "--merge-output-format", "mkv",
+            "-o", os.path.join(vid_dir, "%(id)s.%(ext)s"),
+            "--no-playlist", "--newline", "--no-warnings",
+            "--no-progress",  # we read our own; avoids carriage-return spam
+            "--progress",
+            "--retries", "5", "--fragment-retries", "5",
+            "--write-subs", "--sub-langs", "tr,en", "--no-write-auto-subs",
+            f"https://www.youtube.com/watch?v={youtube_id}",
+        ]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        tail: list[str] = []
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            line = line.rstrip("\n")
+            tail.append(line)
+            if len(tail) > 30:
+                tail.pop(0)
+            m = _PROG.search(line)
+            if m and on_progress:
                 on_progress({
-                    "progress": round(pct, 1),
-                    "speed": _ANSI.sub("", d.get("_speed_str", "") or "").strip(),
-                    "eta": _ANSI.sub("", d.get("_eta_str", "") or "").strip(),
+                    "progress": round(float(m.group(1)), 1),
+                    "speed": m.group(2),
+                    "eta": m.group(3),
                 })
-            elif d.get("status") == "finished":
-                result_path["path"] = d.get("filename", "")
+        rc = proc.wait()
+        if rc != 0:
+            raise RuntimeError("yt-dlp çıkış kodu %s: %s" % (rc, " | ".join(tail[-5:])))
 
-        opts = {
-            "format": self.s.yt_format,
-            "outtmpl": outtmpl,
-            "merge_output_format": "mkv",
-            "noprogress": True,
-            "quiet": True,
-            "no_warnings": True,
-            "progress_hooks": [_hook],
-            "writesubtitles": True,
-            "subtacklanguages": ["tr", "en"],
-            "writethumbnail": False,
-            "retries": 5,
-            "fragment_retries": 5,
-        }
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={youtube_id}", download=True)
-            final = ydl.prepare_filename(info)
-            # account for merge remux to mkv
-            base, _ = os.path.splitext(final)
-            for cand in (base + ".mkv", final, result_path.get("path", "")):
-                if cand and os.path.exists(cand):
-                    return cand
-        raise RuntimeError("indirme tamamlandı ama dosya bulunamadı")
-
-    def probe_duration(self, youtube_id: str) -> int:
-        """Return the video duration in seconds without downloading (0 if unknown)."""
-        opts = {"quiet": True, "no_warnings": True, "skip_download": True}
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={youtube_id}", download=False)
-            return int(info.get("duration") or 0)
+        # pick the largest finished video file (the merged output)
+        finished = [
+            os.path.join(vid_dir, f) for f in os.listdir(vid_dir)
+            if f.lower().endswith(_VIDEO_EXT) and not f.endswith(".part")
+        ]
+        if not finished:
+            raise RuntimeError("indirme bitti ama video dosyası yok")
+        return max(finished, key=os.path.getsize)
