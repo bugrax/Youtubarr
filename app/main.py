@@ -30,9 +30,26 @@ _BASE = Path(__file__).parent
 templates = Jinja2Templates(directory=str(_BASE / "web" / "templates"))
 
 
+def _recover_orphans():
+    """A restart kills in-flight download threads; mark their jobs failed and
+    return the films to 'matched' so they can be picked up again cleanly."""
+    from .models import DownloadJob, JobState
+    with Session(engine) as s:
+        for j in s.exec(select(DownloadJob).where(
+                DownloadJob.state.in_([JobState.downloading, JobState.importing]))).all():
+            j.state = JobState.failed
+            j.message = "interrupted by restart"
+            s.add(j)
+        for f in s.exec(select(Film).where(Film.status == FilmStatus.downloading)).all():
+            f.status = FilmStatus.matched
+            s.add(f)
+        s.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    _recover_orphans()
     s = get_settings()
     if s.sync_interval_min > 0:
         _scheduler.add_job(_scheduled_cycle, "interval", minutes=s.sync_interval_min,
