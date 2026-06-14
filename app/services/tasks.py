@@ -139,7 +139,13 @@ def _run_download(film_id: int) -> None:
         job_id, yt_id, runtime = job.id, film.youtube_id, film.runtime
         notifier.notify_grabbed(film)
 
+    _last = {"pct": -1}
+
     def on_progress(p: dict):
+        pct = int(p.get("progress", 0))
+        if pct == _last["pct"]:   # throttle: only persist on whole-percent change
+            return
+        _last["pct"] = pct
         with Session(engine) as s:
             j = s.get(DownloadJob, job_id)
             if j:
