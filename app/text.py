@@ -34,8 +34,26 @@ def normalize(s: str) -> str:
 
 
 def tokens(s: str) -> list[str]:
-    """Significant tokens of a title (stopwords and 1-char tokens removed)."""
-    return [t for t in normalize(s).split() if len(t) > 1 and t not in _STOPWORDS]
+    """Significant tokens of a title (stopwords and 1-char tokens removed).
+
+    Consecutive single letters are merged into one token so acronym titles like
+    "G.O.R.A." ("g o r a" → "gora") or "C.M.Y.L.M.Z" survive tokenization instead
+    of being dropped as 1-char noise.
+    """
+    raw = normalize(s).split()
+    merged: list[str] = []
+    buf: list[str] = []
+    for t in raw:
+        if len(t) == 1:
+            buf.append(t)
+            continue
+        if buf:
+            merged.append("".join(buf))
+            buf = []
+        merged.append(t)
+    if buf:
+        merged.append("".join(buf))
+    return [t for t in merged if len(t) > 1 and t not in _STOPWORDS]
 
 
 def title_overlap(film_title: str, candidate_title: str) -> float:
